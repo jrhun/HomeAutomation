@@ -11,7 +11,7 @@ class LedStates
 	public:
 	CRGB leds[PixelCount];
 	int count = 0;
-	int brightness = 96;    //acts like a master fader
+	uint8_t brightness = 96;    //acts like a master fader
   bool lightsOn = true;
 	bool dirty = false;
   uint8_t gHue = 120;     // used for various effects
@@ -113,10 +113,10 @@ class LedStates
     avgR /= PixelCount;
     avgG /= PixelCount;
     avgB /= PixelCount;
-    Serial.println("Average is:\nRGB:\t");
-    Serial.print(avgR);
-    Serial.print(avgG);
-    Serial.print(avgB);
+//    Serial.print("Average is: (RGB)\t");
+//    Serial.print(avgR);
+//    Serial.print(avgG);
+//    Serial.println(avgB);
     return CRGB(avgR,avgG,avgB);
  }
 	
@@ -131,17 +131,16 @@ class LedStates
 	{
 		if (!dirty)
 			return;
-    if (lightsOn)
+    uint8_t b = brightness; 
+    if (!lightsOn)
     {
-      for (int i = 0; i < PixelCount; i++)
-      {
-        CRGB led = leds[i];
-        led %= brightness;  // %= scales as a percentage, 255 being dark, 0 being bright
-        pixels.SetPixelColor(i, fl_to_neo(led) );
-      }
-    } else 
+      b = 0;
+    } 
+    for (int i = 0; i < PixelCount; i++)
     {
-      pixels.ClearTo(RgbColor(0,0,0));
+      CRGB led = leds[i];
+      led %= b;  // %= scales as a percentage, 255 being dark, 0 being bright
+      pixels.SetPixelColor(i, fl_to_neo(led) );
     }
 		pixels.Show();
 		dirty = false;
