@@ -8,8 +8,8 @@
 #include "LedStates.h"
 #include "favicon.h"
 
-const char* ssid = "*******";
-const char* password = "*******";
+const char* ssid = "****";
+const char* password = "****";
 
 ESP8266WebServer server(80);
 
@@ -104,12 +104,12 @@ void setup()
     server.send( 200, "text/plain", currentLedStates.lightsOn ? "1" : "0");
   } );
   server.on("/v1/on", []() {
-    currentLedStates.lightsOn = true;;
+    currentLedStates.setLights(true);
 //    Serial.print("LED On");
     server.send( 200, "text/plain", "");
   } );
   server.on("/v1/off", []() {
-    currentLedStates.lightsOn = false;;
+    currentLedStates.setLights(false);
 //    Serial.print("LED Off");
     server.send( 200, "text/plain", "");
   } );

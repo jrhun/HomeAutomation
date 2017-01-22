@@ -47,7 +47,13 @@ class LedStates
 		// }
 		// return adj;
 	// }
-	
+
+  void setLights(bool value)
+  {
+    lightsOn = value;
+    dirty = true;
+  }
+  
 	void setRgb(int i, uint8_t r, uint8_t g, uint8_t b)
 	{
 		leds[i] = CRGB(r,g,b);
