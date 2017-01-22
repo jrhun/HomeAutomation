@@ -8,8 +8,8 @@
 #include "LedStates.h"
 #include "favicon.h"
 
-const char* ssid = "************";
-const char* password = "**************";
+const char* ssid = "The House of Benjamin";
+const char* password = "bellasatonthemat";
 
 ESP8266WebServer server(80);
 
@@ -117,20 +117,16 @@ void setup()
   server.on("/v1/brightness/", []() {
     int brightness = server.arg(0).toInt();
     currentLedStates.setBrightness( brightness );
-    Serial.print("Brightnes set to:\n");
-    Serial.println(brightness);
+    Serial.println("Brightnes set to:\n");
+    Serial.print(brightness);
     server.send( 200, "text/plain", "");
   } );
   server.on("/v1/set", []() {
     CRGB avg = currentLedStates.getAvgColor();
     unsigned long rgb = rgbToHex(avg.r,avg.g,avg.b);
     server.send( 200, "text/plain", String(rgb));
-    Serial.print("Color request: \nHex:");
+    Serial.println("Color request: \nHex:");
     Serial.print(rgb);
-    Serial.print("\tRaw:");
-    Serial.print(avg.r);
-    Serial.print(avg.g);
-    Serial.print(avg.b);
   } );
   server.on("/v1/set/", []() {
 //    long int rgb = getArgValue("rgb");
