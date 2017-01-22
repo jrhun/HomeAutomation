@@ -11,9 +11,10 @@ class LedStates
 	public:
 	CRGB leds[PixelCount];
 	int count = 0;
-	int brightness = 96;
+	int brightness = 96;    //acts like a master fader
   bool lightsOn = true;
 	bool dirty = false;
+  uint8_t gHue = 120;     // used for various effects
 	NeoPixelBus<NeoGrbFeature, NeoEsp8266Dma800KbpsMethod> &pixels;
 	
 	
@@ -27,8 +28,7 @@ class LedStates
 	inline RgbColor fl_to_neo(CRGB led)
 	{
 		//helper function to convert fastled to neopixel
-		RgbColor colorOut(led.red, led.green, led.blue);
-		return colorOut;
+		return RgbColor(led.r, led.g, led.b);
 	}
 	
 	// static CRGB adjustColor(const CRGB &led)
@@ -78,42 +78,51 @@ class LedStates
 	void setBrightness(int scale)
 	{
 		// scale from 0-255
-		brightness = scale;
+		brightness = constrain(scale,0,255);
     dirty = true;
 	}
 
  int getBrightness()
  {
-    // get average brightness of whole strip
-    uint8_t avgLuma = 0;
+    // get average brightness of whole strip. Should return between 0-100 for homebridge
+    int avgLuma = 0;
     for (uint8_t i = 0; i < PixelCount; i++)
     {
-      avgLuma += leds[i].getLuma();
+      CRGB led(leds[i]);
+      led %= brightness;    // correct for master brightness
+      avgLuma += led.getLuma();
     }
     avgLuma /= PixelCount;
-    return avgLuma;
+    return (int) (avgLuma / 255.0 * 100.0);         // should be between 0-100
+//    return (int) (brightness / 255.0 * 100.0);
  }
 
- CHSV getAvgColor()
+ CRGB getAvgColor()
  {
   //gets average color of whole strip
-    uint8_t avgR, avgG, avgB;
+    int avgR, avgG, avgB;
     avgR = avgG = avgB = 0;
     for (uint8_t i = 0; i < PixelCount; i++)
     {
-      avgR += leds[i].red;
-      avgG += leds[i].green;
-      avgB += leds[i].blue;
+      CRGB led(leds[i]);
+      led %= brightness;    // correct led color for brightness
+      avgR = avgR + led.r;
+      avgG = avgG + led.g;
+      avgB = avgB + led.b;
     }
     avgR /= PixelCount;
     avgG /= PixelCount;
     avgB /= PixelCount;
-    return CHSV(avgR,avgG,avgB);
+    Serial.println("Average is:\nRGB:\t");
+    Serial.print(avgR);
+    Serial.print(avgG);
+    Serial.print(avgB);
+    return CRGB(avgR,avgG,avgB);
  }
 	
 	void rainbow()
 	{
-		uint8_t gHue = 102;
+		gHue += 10;
 		fill_rainbow(leds, count, gHue, 7);
 		dirty = true;
 	}
@@ -122,20 +131,17 @@ class LedStates
 	{
 		if (!dirty)
 			return;
-    if (!lightsOn)
-    {
-        pixels.ClearTo(RgbColor(0,0,0));
-        pixels.Show();
-        return;
-    } else
+    if (lightsOn)
     {
       for (int i = 0; i < PixelCount; i++)
       {
-        CRGB cLed = leds[i];
-//        uint8_t temp = constrain(255-brightness, 0, 255);
-        cLed %= brightness;  // %= scales as a percentage, 255 being dark, 0 being bright
-        pixels.SetPixelColor(i, fl_to_neo(cLed) );
+        CRGB led = leds[i];
+        led %= brightness;  // %= scales as a percentage, 255 being dark, 0 being bright
+        pixels.SetPixelColor(i, fl_to_neo(led) );
       }
+    } else 
+    {
+      pixels.ClearTo(RgbColor(0,0,0));
     }
 		pixels.Show();
 		dirty = false;

@@ -6,9 +6,10 @@
 #include <FastLED.h>
 
 #include "LedStates.h"
+#include "favicon.h"
 
-const char* ssid = "The House of Benjamin";
-const char* password = "bellasatonthemat";
+const char* ssid = "************";
+const char* password = "**************";
 
 ESP8266WebServer server(80);
 
@@ -20,7 +21,7 @@ NeoPixelBus<NeoGrbFeature, NeoEsp8266Dma800KbpsMethod> strip(PixelCount);
 
 LedStates currentLedStates(strip);
 
-inline unsigned long createRGB(int r, int g, int b)
+inline unsigned long rgbToHex(int r, int g, int b)
 {   
   //convert RGB to hex
     return ((r & 0xff) << 16) + ((g & 0xff) << 8) + (b & 0xff);
@@ -30,7 +31,21 @@ CHSV hexToHSV();
 
 void handRoot()
 {
-	server.send(200, "text/plain", "Server is up");
+  String message = "Server is up\n";
+  message += "LEDS:\t\t";
+  message += (currentLedStates.lightsOn ? "On":"Off");
+  message += "\nBrightness:\t";
+  message += currentLedStates.getBrightness();
+  message += "\nColor:\t\tR:";
+  CRGB col = currentLedStates.getAvgColor();
+  message += col.r;
+  message += "\tG:";
+  message += col.g;
+  message += "\tB:";
+  message += col.b;
+//  message += "\nColor(HEX):\t";
+//  message += (String)rgbToHex(col.r, col.g, col.b);
+	server.send(200, "text/plain", message);
 }
 
 int getArgValue(String name)
@@ -43,8 +58,7 @@ int getArgValue(String name)
 
 void rainbow()
 {
-	currentLedStates.rainbow();
-//  currentLedStates.commit(); 
+  currentLedStates.rainbow();
 }
 
 void handleNotFound()
@@ -108,11 +122,15 @@ void setup()
     server.send( 200, "text/plain", "");
   } );
   server.on("/v1/set", []() {
-    CHSV avgColor = currentLedStates.getAvgColor();
-    unsigned long hsv = createRGB(avgColor.hue,avgColor.sat,avgColor.val);
-    server.send( 200, "text/plain", String(hsv));
-    Serial.print("Color request: current:");
-    Serial.print(hsv);
+    CRGB avg = currentLedStates.getAvgColor();
+    unsigned long rgb = rgbToHex(avg.r,avg.g,avg.b);
+    server.send( 200, "text/plain", String(rgb));
+    Serial.print("Color request: \nHex:");
+    Serial.print(rgb);
+    Serial.print("\tRaw:");
+    Serial.print(avg.r);
+    Serial.print(avg.g);
+    Serial.print(avg.b);
   } );
   server.on("/v1/set/", []() {
 //    long int rgb = getArgValue("rgb");
@@ -124,15 +142,19 @@ void setup()
 //    rgb.r = ((hexValue >> 16) & 0xFF) / 255.0;  // Extract the RR byte
 //    rgb.g = ((hexValue >> 8) & 0xFF) / 255.0;   // Extract the GG byte
 //    rgb.b = ((hexValue) & 0xFF) / 255.0; 
-    Serial.print("RGB:\n");
-    Serial.print(rgb.r);
-    Serial.print(rgb.g);
-    Serial.println(rgb.b);
-    Serial.print("Arg:");
-    Serial.print(server.arg(0));
-    Serial.print(hexValue);
-    currentLedStates.setAllHsv(rgb.r, rgb.g, rgb.b);
+//    Serial.print("RGB:\n");
+//    Serial.print(rgb.r);
+//    Serial.print(rgb.g);
+//    Serial.println(rgb.b);
+//    Serial.print("Arg:");
+//    Serial.print(server.arg(0));
+//    Serial.print(hexValue);
+    currentLedStates.setAllRgb(rgb.r, rgb.g, rgb.b);
     server.send( 200, "text/plain", "");
+  } );
+  server.on("/favicon.ico", []() {
+    String data = favicon;
+    server.send( 200, "image", data);
   } );
 	
 	server.begin();
@@ -147,6 +169,6 @@ void loop()
 	// put your main code here, to run repeatedly:
 	server.handleClient();
   currentLedStates.commit();
-  delay(50);
+//  delay(50);
 //	currentLedStates.render();
 }
