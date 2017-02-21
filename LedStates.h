@@ -2,9 +2,41 @@
 //#include "LedFunction.h"
 
 const uint16_t PixelCount = 60;
+const uint8_t maxBrightness = 128;
 
 const CRGB colorCorrection = CRGB(255,176,240); //typical 5050 surface mount
 const CRGB colorTemperature = CRGB(201,226,255); // overcast sky
+
+class LedStates;
+class LedFunction
+{
+  public:
+    LedStates *state;
+    LedFunction()
+    {
+    }
+
+    virtual void render() = 0;
+};
+
+class RainbowFunction: public LedFunction
+{
+  public:
+    uint8_t mHue;
+    uint8_t delta = 7;
+
+    RainbowFunction(uint8_t hue = 0)
+    {
+      mHue = hue;
+    }
+    virtual void render()
+    {
+      // called once every 1000/framerate msec
+      mHue++;
+      fill_rainbow(state->leds, state->count, mHue, delta);
+      state->dirty = true;
+    }
+};
 
 class LedStates
 {
@@ -15,38 +47,42 @@ class LedStates
   bool lightsOn = true;
 	bool dirty = false;
   uint8_t gHue = 120;     // used for various effects
+  LedFunction *function = 0;
+  
 	NeoPixelBus<NeoGrbFeature, NeoEsp8266Dma800KbpsMethod> &pixels;
-	
-	
 	LedStates(NeoPixelBus<NeoGrbFeature, NeoEsp8266Dma800KbpsMethod> &ledPixels)
 	:pixels(ledPixels)
 	{
 		count = PixelCount;
     setAllRgb(60,60,60);
 	}
+
+//  void setFunction(LedFunction *newFunction)
+//  {
+//    if(function)
+//      delete function;
+//    function = newFunction;
+//    if(!function)
+//      return;
+//    function->state = this;
+//  }
 	
-	inline RgbColor fl_to_neo(CRGB led)
+	CRGB adjustColor(const CRGB &led)
 	{
-		//helper function to convert fastled to neopixel
-		return RgbColor(led.r, led.g, led.b);
-	}
-	
-	// static CRGB adjustColor(const CRGB &led)
-	// {
-		// CRGB adj(0,0,0);
+		 CRGB adj(0,0,0);
 		
-		// if (brightness > 0)
-		// {
-			// for(uint8_t i = 0; i < 3; i++) {
-				// uint8_t cc = colorCorrection.raw[i];
-				// uint8_t ct = colorTemperature.raw[i];
-				// uint32_t work = (((uint32_t)cc)+1) * (((uint32_t)ct)+1) * brightness;
-					// work /= 0x10000L;
-					// adj.raw[i] = work & 0xFF;	
-			// }
-		// }
-		// return adj;
-	// }
+		 if (brightness > 0)
+		 {
+			  for(uint8_t i = 0; i < 3; i++) {
+				  uint8_t cc = colorCorrection.raw[i];
+				  uint8_t ct = colorTemperature.raw[i];
+				  uint32_t work = (((uint32_t)cc)+1) * (((uint32_t)ct)+1) * brightness;
+					  work /= 0x10000L;
+					  adj.raw[i] = work & 0xFF;	
+			  }
+		 }
+		 return adj;
+	}
 
   void setLights(bool value)
   {
@@ -83,24 +119,31 @@ class LedStates
 	
 	void setBrightness(int scale)
 	{
-		// scale from 0-255
-		brightness = constrain(scale,0,255);
+		// scale 0-100 from homekit to 0-255
+    if (scale < 0 or scale > 100)
+    {
+      Serial.print("Invalid brightness value, must be between 0-100");
+      return; 
+    }
+    scale = (float) scale / 100.0 * 255.0;
+		brightness = (int) scale;
     dirty = true;
 	}
 
  int getBrightness()
  {
     // get average brightness of whole strip. Should return between 0-100 for homebridge
-    int avgLuma = 0;
-    for (uint8_t i = 0; i < PixelCount; i++)
-    {
-      CRGB led(leds[i]);
-      led %= brightness;    // correct for master brightness
-      avgLuma += led.getLuma();
-    }
-    avgLuma /= PixelCount;
-    return (int) (avgLuma / 255.0 * 100.0);         // should be between 0-100
-//    return (int) (brightness / 255.0 * 100.0);
+//    int avgLuma = 0;
+//    for (uint8_t i = 0; i < PixelCount; i++)
+//    {
+//      CRGB led(leds[i]);
+//      led %= brightness;    // correct for master brightness
+//      avgLuma += led.getLuma();
+//    }
+//    avgLuma /= PixelCount;
+//    return (int) (avgLuma / 255.0 * 100.0);         // should be between 0-100
+      // Just return brightness scale value
+    return (int) ((float) brightness / 255.0 * 100.0);
  }
 
  CRGB getAvgColor()
@@ -126,13 +169,6 @@ class LedStates
     return CRGB(avgR,avgG,avgB);
  }
 	
-	void rainbow()
-	{
-		gHue += 10;
-		fill_rainbow(leds, count, gHue, 7);
-		dirty = true;
-	}
-	
 	void commit()
 	{
 		if (!dirty)
@@ -146,9 +182,15 @@ class LedStates
     {
       CRGB led = leds[i];
       led %= b;  // %= scales as a percentage, 255 being dark, 0 being bright
-      pixels.SetPixelColor(i, fl_to_neo(led) );
+      pixels.SetPixelColor(i, RgbColor(led.r,led.g,led.b) );
     }
 		pixels.Show();
 		dirty = false;
 	}
+ 
+  virtual void render()
+  {
+    if(function)
+      function->render();
+  }
 };

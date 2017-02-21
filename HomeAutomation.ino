@@ -6,10 +6,9 @@
 #include <FastLED.h>
 
 #include "LedStates.h"
-#include "favicon.h"
 
-const char* ssid = "****";
-const char* password = "****";
+const char* ssid = "The House of Benjamin";
+const char* password = "bellasatonthemat";
 
 ESP8266WebServer server(80);
 
@@ -20,6 +19,9 @@ CRGB leds[PixelCount];
 NeoPixelBus<NeoGrbFeature, NeoEsp8266Dma800KbpsMethod> strip(PixelCount);
 
 LedStates currentLedStates(strip);
+
+unsigned long lastMillis = 0; 
+const unsigned long frameRate = 30; //fps
 
 inline unsigned long int rgbToHex(uint8_t r, uint8_t g, uint8_t b)
 {   
@@ -58,11 +60,6 @@ int getArgValue(String name)
   return -1;
 }
 
-void rainbow()
-{
-  currentLedStates.rainbow();
-}
-
 void handleNotFound()
 {
 	String message = "Error:\n";
@@ -98,7 +95,18 @@ void setup()
 	Serial.println(WiFi.localIP());
 	
 	server.on("/", handRoot);
-	server.on("/rainbow", rainbow);
+//	server.on("/rainbow", [](){
+//	  server.send(200);
+//    if (server.args() > 0) 
+//    {
+//      int hue = server.arg(0).toInt();
+//      currentLedStates.function = new RainbowFunction(hue % 255);
+//    } else
+//    {
+//      currentLedStates.function = new RainbowFunction();
+//    }
+//    
+//	} );
 	server.onNotFound(handleNotFound);
   server.on("/v1/status", []() {
     server.send( 200, "text/plain", currentLedStates.lightsOn ? "1" : "0");
@@ -150,10 +158,9 @@ void setup()
     currentLedStates.setAllRgb(rgb.r, rgb.g, rgb.b);
     server.send( 200, "text/plain", "");
   } );
-  server.on("/favicon.ico", []() {
-    String data = favicon;
-    server.send( 200, "image", data);
-  } );
+//  server.on("/favicon.ico", []() {
+//    server.send( 404);
+//  } );
 	
 	server.begin();
 	Serial.println("HTTP Server started");
@@ -166,7 +173,10 @@ void loop()
 {
 	// put your main code here, to run repeatedly:
 	server.handleClient();
-  currentLedStates.commit();
-//  delay(50);
-//	currentLedStates.render();
+  unsigned long currentMillis = millis();
+  if (currentMillis - lastMillis > (1000 / frameRate))
+  {
+//    currentLedStates.render();
+    currentLedStates.commit();
+  }
 }
