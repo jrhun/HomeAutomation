@@ -6,10 +6,9 @@
 #include <FastLED.h>
 
 #include "LedStates.h"
-#include "favicon.h"
 
-const char* ssid = "************";
-const char* password = "**************";
+const char* ssid = "**********";
+const char* password = "***********";
 
 ESP8266WebServer server(80);
 
@@ -21,10 +20,15 @@ NeoPixelBus<NeoGrbFeature, NeoEsp8266Dma800KbpsMethod> strip(PixelCount);
 
 LedStates currentLedStates(strip);
 
-inline unsigned long rgbToHex(int r, int g, int b)
+unsigned long lastMillis = 0; 
+const unsigned long frameRate = 30; //fps
+
+inline unsigned long int rgbToHex(uint8_t r, uint8_t g, uint8_t b)
 {   
   //convert RGB to hex
-    return ((r & 0xff) << 16) + ((g & 0xff) << 8) + (b & 0xff);
+  unsigned long int out;
+  out = ((r & 0xff) << 16) + ((g & 0xff) << 8) + (b & 0xff);
+  return out;
 }
 
 CHSV hexToHSV();
@@ -54,11 +58,6 @@ int getArgValue(String name)
     if(server.argName(i) == name)
       return server.arg(i).toInt();
   return -1;
-}
-
-void rainbow()
-{
-  currentLedStates.rainbow();
 }
 
 void handleNotFound()
@@ -96,18 +95,29 @@ void setup()
 	Serial.println(WiFi.localIP());
 	
 	server.on("/", handRoot);
-	server.on("/rainbow", rainbow);
+//	server.on("/rainbow", [](){
+//	  server.send(200);
+//    if (server.args() > 0) 
+//    {
+//      int hue = server.arg(0).toInt();
+//      currentLedStates.function = new RainbowFunction(hue % 255);
+//    } else
+//    {
+//      currentLedStates.function = new RainbowFunction();
+//    }
+//    
+//	} );
 	server.onNotFound(handleNotFound);
   server.on("/v1/status", []() {
     server.send( 200, "text/plain", currentLedStates.lightsOn ? "1" : "0");
   } );
   server.on("/v1/on", []() {
-    currentLedStates.lightsOn = true;;
+    currentLedStates.setLights(true);
 //    Serial.print("LED On");
     server.send( 200, "text/plain", "");
   } );
   server.on("/v1/off", []() {
-    currentLedStates.lightsOn = false;;
+    currentLedStates.setLights(false);
 //    Serial.print("LED Off");
     server.send( 200, "text/plain", "");
   } );
@@ -117,24 +127,20 @@ void setup()
   server.on("/v1/brightness/", []() {
     int brightness = server.arg(0).toInt();
     currentLedStates.setBrightness( brightness );
-    Serial.print("Brightnes set to:\n");
-    Serial.println(brightness);
+//    Serial.print("Brightnes set to:\n");
+//    Serial.println(brightness);
     server.send( 200, "text/plain", "");
   } );
   server.on("/v1/set", []() {
     CRGB avg = currentLedStates.getAvgColor();
     unsigned long rgb = rgbToHex(avg.r,avg.g,avg.b);
     server.send( 200, "text/plain", String(rgb));
-    Serial.print("Color request: \nHex:");
-    Serial.print(rgb);
-    Serial.print("\tRaw:");
-    Serial.print(avg.r);
-    Serial.print(avg.g);
-    Serial.print(avg.b);
+//    Serial.print("Color request: \nHex:");
+//    Serial.println(rgb);
   } );
   server.on("/v1/set/", []() {
 //    long int rgb = getArgValue("rgb");
-    long int hexValue = strtol(server.arg(0).c_str(), NULL, 16);
+    unsigned long int hexValue = strtol(server.arg(0).c_str(), NULL, 16);
     CRGB rgb;
     rgb.r = ((hexValue >> 16) & 0xFF);
     rgb.g = ((hexValue >> 8) & 0xFF);
@@ -152,10 +158,9 @@ void setup()
     currentLedStates.setAllRgb(rgb.r, rgb.g, rgb.b);
     server.send( 200, "text/plain", "");
   } );
-  server.on("/favicon.ico", []() {
-    String data = favicon;
-    server.send( 200, "image", data);
-  } );
+//  server.on("/favicon.ico", []() {
+//    server.send( 404);
+//  } );
 	
 	server.begin();
 	Serial.println("HTTP Server started");
@@ -168,7 +173,10 @@ void loop()
 {
 	// put your main code here, to run repeatedly:
 	server.handleClient();
-  currentLedStates.commit();
-//  delay(50);
-//	currentLedStates.render();
+  unsigned long currentMillis = millis();
+  if (currentMillis - lastMillis > (1000 / frameRate))
+  {
+//    currentLedStates.render();
+    currentLedStates.commit();
+  }
 }
