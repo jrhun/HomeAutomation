@@ -7,8 +7,8 @@
 
 #include "LedStates.h"
 
-const char* ssid = "The House of Benjamin";
-const char* password = "bellasatonthemat";
+const char* ssid = "**********";
+const char* password = "***********";
 
 ESP8266WebServer server(80);
 
