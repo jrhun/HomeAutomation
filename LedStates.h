@@ -1,5 +1,4 @@
 #include <ESP8266WebServer.h>
-#include "LedFunction.h"
 
 const uint16_t PixelCount = 60;
 const uint8_t maxBrightness = 128;
@@ -7,37 +6,7 @@ const uint8_t maxBrightness = 128;
 const CRGB colorCorrection = CRGB(255,176,240); //typical 5050 surface mount
 const CRGB colorTemperature = CRGB(201,226,255); // overcast sky
 
-class LedStates;
-//class LedFunction
-//{
-//  public:
-//    LedStates *state;
-//    LedFunction()
-//    {
-//    }
-//
-//    virtual void render() = 0;
-//};
-//
-//class RainbowFunction: public LedFunction
-//{
-//  public:
-//    uint8_t mHue;
-//    uint8_t delta = 7;
-//
-//    RainbowFunction(uint8_t hue = 0)
-//    {
-//      mHue = hue;
-//    }
-//    virtual void render()
-//    {
-//      // called once every 1000/framerate msec
-//      mHue++;
-//      fill_rainbow(state->leds, state->count, mHue, delta);
-//      state->setDirty();
-//    }
-//};
-
+class LedFunction;
 class LedStates
 {
  public:
@@ -47,7 +16,8 @@ class LedStates
   bool lightsOn = true;
 	bool dirty = false;
   uint8_t gHue = 120;     // used for various effects
-//  LedFunction *function = 0;
+  LedFunction *function = 0;
+  LedStates *thisState = this; 
   
 	NeoPixelBus<NeoGrbFeature, NeoEsp8266Dma800KbpsMethod> &pixels;
 	LedStates(NeoPixelBus<NeoGrbFeature, NeoEsp8266Dma800KbpsMethod> &ledPixels)
@@ -61,10 +31,10 @@ class LedStates
 //  {
 //    if(function)
 //      delete function;
-//    function = newFunction;
+//    function = newFunction(thisState);
 //    if(!function)
 //      return;
-//    function->state = this;
+////    function->state = this;
 //  }
 
   void setDirty()
@@ -197,4 +167,35 @@ class LedStates
 //    if(function)
 //      function->render();
 //  }
+};
+
+class LedFunction
+{
+  public:
+    LedStates *state;
+    LedFunction(LedStates State)
+    {
+      state = State;
+    }
+    
+    virtual void render() = 0;
+};
+
+class RainbowFunction: public LedFunction
+{
+  public:
+    uint8_t mHue;
+    uint8_t delta = 7;
+
+    RainbowFunction(uint8_t hue = 0)
+    {
+      mHue = hue;
+    }
+    virtual void render()
+    {
+      // called once every 1000/framerate msec
+      mHue++;
+      fill_rainbow(state->leds, state->count, mHue, delta);
+      state->dirty = true;
+    }
 };
