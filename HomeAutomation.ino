@@ -95,18 +95,18 @@ void setup()
 	Serial.println(WiFi.localIP());
 	
 	server.on("/", handRoot);
-//	server.on("/rainbow", [](){
-//	  server.send(200);
-//    if (server.args() > 0) 
-//    {
-//      int hue = server.arg(0).toInt();
-//      currentLedStates.function = new RainbowFunction(hue % 255);
-//    } else
-//    {
-//      currentLedStates.function = new RainbowFunction();
-//    }
-//    
-//	} );
+	server.on("/rainbow", [](){
+	  server.send(200);
+    if (server.args() > 0) 
+    {
+      int hue = server.arg(0).toInt();
+      currentLedStates.function = new RainbowFunction(hue % 255);
+    } else
+    {
+      currentLedStates.function = new RainbowFunction();
+    }
+    
+	} );
 	server.onNotFound(handleNotFound);
   server.on("/v1/status", []() {
     server.send( 200, "text/plain", currentLedStates.lightsOn ? "1" : "0");
